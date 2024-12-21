@@ -1,2 +1,11 @@
 # Evaluate a simple Expression
-2  + 3
+pi := 3.141592
+x := 20.3
+
+if x >= 0 then
+  println("x is positive")
+
+else
+  println("x is negative")
+
+end

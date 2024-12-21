@@ -8,4 +8,6 @@ if __name__ == '__main__':
     filename = sys.argv[1]
     with open(filename) as file:
         source = file.read()
-        print(source)
+        tokens = Lexer(source).tokenize()
+        for token in tokens:
+            print(token)
