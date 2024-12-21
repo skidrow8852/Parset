@@ -1,5 +1,6 @@
 # Parset
-![DALL·E 2024-12-21 10 55 51 - A modern and sleek logo for 'Parset', a programming interpreter  The logo features a stylized representation of a parser, incorporating minimalistic b](https://github.com/user-attachments/assets/6c35048c-9337-4ea7-9d94-6d1f30707356)
+![DALL·E 2024-12-21 10 55 51 - A modern and sleek logo for 'Parset', a programming interpreter  The logo features a stylized representation of a parser, incorporating minimalistic b](https://github.com/user-attachments/assets/70d2d1a1-6928-4e34-bfb6-5967124ffceb)
+
 
 Parset is a simple yet versatile programming language designed and implemented to practice and enhance my Python programming skills. It serves as a learning project and an exploration into how programming languages are built, parsed, and executed.
 
