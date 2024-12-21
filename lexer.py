@@ -40,14 +40,21 @@ class Lexer:
         while self.peek() != start_quote and not (self.curr >= len(self.source)):
             self.advance()
         if self.curr >= len(self.source):
-            raise SyntaxError('[Line {self.line}] Unterminated string.')
+            raise SyntaxError(f'[Line {self.line}] Unterminated string.')
         self.advance()
         self.add_token(TOK_STRING)
 
     def handle_identifier(self):
         while self.peek().isalnum() or self.peek() == '_':
             self.advance()
-        self.add_token(TOK_IDENTIFIER)
+
+        # check if identifier matches a key in the keywords dic
+        text = self.source[self.start:self.curr]
+        key_type = keywords.get(text)
+        if key_type == None:
+            self.add_token(TOK_IDENTIFIER)
+        else:
+            self.add_token(key_type)
 
     def match(self, expected):
         if self.curr >= len(self.source):
