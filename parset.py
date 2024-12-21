@@ -1,6 +1,8 @@
 import sys
+from token import *
+from lexer import *
 
-if __name__ == 'main':
+if __name__ == '__main__':
     if len(sys.argv) != 2:
         raise SystemExit("Usage : python parset.py <filename>")
     filename = sys.argv[1]
