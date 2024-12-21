@@ -1,5 +1,6 @@
 
 from tokens import *
+from utils import lexing_error
 
 class Lexer:
     def __init__(self, source):
@@ -115,5 +116,5 @@ class Lexer:
             elif ch.isalpha() or ch == '_':
                 self.handle_identifier()
             else:
-                self.lexing_error(f'Error at {ch!r}: Unexpected character.', self.line)
+                lexing_error(f'Error at {ch!r}: Unexpected character.', self.line)
         return self.tokens
