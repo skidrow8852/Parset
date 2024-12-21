@@ -44,6 +44,7 @@ class Parser:
   #              |  <float>
   #              |  <bool>
   #              |  <string>
+  #              |  <identifier>
   #              | '(' <expr> ')'
   def primary(self):
     if self.match(TOK_INTEGER):
@@ -62,6 +63,14 @@ class Parser:
         parse_error(f'Error: ")" expected.', self.previous_token().line)
       else:
         return Grouping(expr, line=self.previous_token().line)
+    else:
+      identifier = self.expect(TOK_IDENTIFIER)
+      if self.match(TOK_LPAREN):
+        args = self.args()
+        self.expect(TOK_RPAREN)
+        return FuncCall(identifier.lexeme, args, line=self.previous_token().line)
+      else:
+        return Identifier(identifier.lexeme, line=self.previous_token().line)
 
   # <unary>  ::=  ('+'|'-'|'~') <unary>  |  <primary>
   def unary(self):
@@ -146,32 +155,131 @@ class Parser:
   def expr(self):
     return self.logical_or()
 
-  # <print_stmt>  ::=  "print" <expr>
-  def print_stmt(self):
-    if self.match(TOK_PRINT):
+  # <print_stmt>  ::=  ( "print" | "println" ) <expr>
+  def print_stmt(self, end):
+    if self.match(TOK_PRINT) or self.match(TOK_PRINTLN):
       val = self.expr()
-      return PrintStmt(val, line=self.previous_token().line)
+      return PrintStmt(val, end, line=self.previous_token().line)
 
+  # <if_stmt>  ::=  "if" <expr> "then" <stmts> ( "else" <stmts> )? "end"
+  def if_stmt(self):
+    self.expect(TOK_IF)
+    test = self.expr()
+    self.expect(TOK_THEN)
+    then_stmts = self.stmts()
+    if self.is_next(TOK_ELSE):
+      self.advance() # consume the else
+      else_stmts = self.stmts()
+    else:
+      else_stmts = None
+    self.expect(TOK_END)
+    return IfStmt(test, then_stmts, else_stmts, line=self.previous_token().line)
+
+  # <while_stmt>  ::=  "while" <expr> "do" <stmts> "end"
+  def while_stmt(self):
+    self.expect(TOK_WHILE)
+    test = self.expr()
+    self.expect(TOK_DO)
+    body_stmts = self.stmts()
+    self.expect(TOK_END)
+    return WhileStmt(test, body_stmts, line=self.previous_token().line)
+
+  # <for_stmt>  ::=  "for" <identifier> ":=" <start> "," <end> ("," <step>)? "do" <body_stmts> "end"
+  def for_stmt(self):
+    self.expect(TOK_FOR)
+    identifier = self.primary()
+    self.expect(TOK_ASSIGN)
+    start = self.expr()
+    self.expect(TOK_COMMA)
+    end = self.expr()
+    if self.is_next(TOK_COMMA):
+      self.advance()
+      step = self.expr()
+    else:
+      step = None
+    self.expect(TOK_DO)
+    body_stmts = self.stmts()
+    self.expect(TOK_END)
+    return ForStmt(identifier, start, end, step, body_stmts, line=self.previous_token().line)
+
+  # <args> ::= <expr> ( ',' <expr> )*
+  def args(self):
+    args = []
+    while not self.is_next(TOK_RPAREN):
+      args.append(self.expr())
+      if not self.is_next(TOK_RPAREN):
+        self.expect(TOK_COMMA)
+    return args
+
+  # <params>  ::=  <identifier> ("," <identifier> )*
+  def params(self):
+    params = []
+    numparams = 0
+    while not self.is_next(TOK_RPAREN):
+      name = self.expect(TOK_IDENTIFIER)
+      numparams += 1
+      if numparams > 255:
+        parse_error(f'Functions cannot have more than 255 parameters.', name.line)
+      params.append(Param(name.lexeme, line=self.previous_token().line))
+      if not self.is_next(TOK_RPAREN):
+        self.expect(TOK_COMMA)
+    return params
+
+  # <func_decl>  ::=  "func" <name> "(" <params>? ")" <body_stmts> "end"
+  def func_decl(self):
+    self.expect(TOK_FUNC)
+    name = self.expect(TOK_IDENTIFIER)
+    self.expect(TOK_LPAREN)
+    params = self.params()
+    self.expect(TOK_RPAREN)
+    body_stmts = self.stmts()
+    self.expect(TOK_END)
+    return FuncDecl(name.lexeme, params, body_stmts, line=name.line)
+
+  # <ret_stmt>  ::=  "ret" <expr>
+  def ret_stmt(self):
+    self.expect(TOK_RET)
+    value = self.expr()
+    return RetStmt(value, line=self.previous_token().line)
+
+  # <stmt> ::=  print_stmt
+  #          |  if_stmt
+  #          |  while_stmt
+  #          |  for_stmt
+  #          |  func_decl
+  #          |  func_call
+  #          |  ret_stmt
   def stmt(self):
     # Predictive parsing, where the next token predicts what is the next statement
     # How far do we lookahead? Different algorithms: LL(1), LALR(1), LR(1), LR(2)
     if self.peek().token_type == TOK_PRINT:
-      return self.print_stmt()
-    #elif self.peek().token_type == TOK_IF:
-    #  return self.if_stmt()
-    #elif self.peek().token_type == TOK_WHILE:
-    #  return self.while_stmt()
-    #elif self.peek().token_type == TOK_FOR:
-    #  return self.for_stmt()
-    #elif self.peek().token_type == TOK_FUNC:
-    #  return self.func_decl()
+      return self.print_stmt(end='')
+    if self.peek().token_type == TOK_PRINTLN:
+      return self.print_stmt(end='\n')
+    elif self.peek().token_type == TOK_IF:
+      return self.if_stmt()
+    elif self.peek().token_type == TOK_WHILE:
+      return self.while_stmt()
+    elif self.peek().token_type == TOK_FOR:
+      return self.for_stmt()
+    elif self.peek().token_type == TOK_FUNC:
+      return self.func_decl()
+    elif self.peek().token_type == TOK_RET:
+      return self.ret_stmt()
     else:
-      #TODO: What does *else* means?
-      pass
+      left = self.expr()
+      if self.match(TOK_ASSIGN):
+        # Handle assignment
+        right = self.expr()
+        return Assignment(left, right, line=self.previous_token().line)
+      else:
+        # Handle function call statement (special type of statement that wraps a FuncCall expression)
+        return FuncCallStmt(left)
 
   def stmts(self):
     stmts = []
-    while self.curr < len(self.tokens):  # Change soon because we can have an "end" or "else"
+    # Loop all statements of the current block (meaning until we find an "end", or "else", or EOF
+    while self.curr < len(self.tokens) and not self.is_next(TOK_ELSE) and not self.is_next(TOK_END):
       stmt = self.stmt()
       stmts.append(stmt)
     return Stmts(stmts, line=self.previous_token().line)
